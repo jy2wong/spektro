@@ -4,7 +4,7 @@ CFLAGS=-g
 
 all: spektro
 
-spektro: main.c
+spektro: main.c spektro.ui
 	${CC} ${CFLAGS} `pkg-config --cflags gtk+-3.0` -o spektro main.c `pkg-config --libs gtk+-3.0`
 
 clean:

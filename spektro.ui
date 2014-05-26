@@ -1,0 +1,163 @@
+<interface>
+<object id="window" class="GtkApplicationWindow">
+  <property name="title">Spektro</property>
+  <property name="visible">True</property>
+  <child>
+    <object id="grid" class="GtkGrid">
+      <property name="visible">True</property>
+      <property name="can_focus">False</property>
+      <child>
+        <object class="GtkGrid" id="grid3">
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          <child>
+            <object class="GtkLabel" id="lower-label">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <property name="halign">end</property>
+              <property name="label" translatable="yes">Lower:</property>
+            </object>
+            <packing>
+              <property name="left_attach">0</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkSpinButton" id="lower-spin">
+              <property name="visible">True</property>
+              <property name="can_focus">True</property>
+              <property name="max_length">7</property>
+              <property name="width_chars">7</property>
+              <property name="max_width_chars">7</property>
+              <property name="input_purpose">number</property>
+              <property name="orientation">vertical</property>
+              <property name="digits">1</property>
+              <property name="numeric">True</property>
+              <property name="update_policy">if-valid</property>
+              <property name="value">20</property>
+            </object>
+            <packing>
+              <property name="left_attach">1</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkLabel" id="lower-label-unit">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <property name="halign">start</property>
+              <property name="margin_right">16</property>
+              <property name="label" translatable="yes">Hz</property>
+            </object>
+            <packing>
+              <property name="left_attach">2</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkLabel" id="upper-label">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <property name="halign">end</property>
+              <property name="label" translatable="yes">Upper:</property>
+            </object>
+            <packing>
+              <property name="left_attach">3</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkSpinButton" id="upper-spin">
+              <property name="visible">True</property>
+              <property name="can_focus">True</property>
+              <property name="max_width_chars">7</property>
+              <property name="orientation">vertical</property>
+              <property name="digits">1</property>
+              <property name="numeric">True</property>
+              <property name="update_policy">if-valid</property>
+              <property name="value">20000</property>
+            </object>
+            <packing>
+              <property name="left_attach">4</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkLabel" id="lower-label-unit1">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <property name="halign">start</property>
+              <property name="margin_right">16</property>
+              <property name="label" translatable="yes">Hz</property>
+            </object>
+            <packing>
+              <property name="left_attach">5</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkLabel" id="scaling-label">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <property name="halign">end</property>
+              <property name="label" translatable="yes">Scaling:</property>
+              <property name="track_visited_links">False</property>
+            </object>
+            <packing>
+              <property name="left_attach">6</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+          <child>
+            <object class="GtkComboBoxText" id="scaling-combobox">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <property name="valign">center</property>
+              <items>
+                <item id="scaling-label-logarithmic" translatable="yes">Logarithmic</item>
+                <item id="scaling-label-linear" translatable="yes">Linear</item>
+              </items>
+            </object>
+            <packing>
+              <property name="left_attach">7</property>
+              <property name="top_attach">0</property>
+            </packing>
+          </child>
+        </object>
+        <packing>
+          <property name="left_attach">0</property>
+          <property name="top_attach">0</property>
+        </packing>
+      </child>
+      <child>
+        <object class="GtkScrolledWindow" id="scrolledwindow">
+          <property name="visible">True</property>
+          <property name="can_focus">True</property>
+          <property name="hexpand">True</property>
+          <property name="vexpand">True</property>
+          <property name="shadow_type">in</property>
+          <child>
+            <object class="GtkViewport" id="viewport">
+              <property name="visible">True</property>
+              <property name="can_focus">False</property>
+              <child>
+                <object class="GtkDrawingArea" id="canvas">
+                  <property name="width_request">600</property>
+                  <property name="height_request">600</property>
+                  <property name="visible">True</property>
+                  <property name="app_paintable">True</property>
+                  <property name="can_focus">False</property>
+                </object>
+              </child>
+            </object>
+          </child>
+        </object>
+        <packing>
+          <property name="left_attach">0</property>
+          <property name="top_attach">1</property>
+        </packing>
+      </child>
+    </object>
+  </child>
+</object>
+</interface>
