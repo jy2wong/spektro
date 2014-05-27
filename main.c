@@ -2,7 +2,7 @@
 
 static void about_cb(GtkMenuItem *menuitem, GtkAboutDialog *about) {
   gint result = gtk_dialog_run(GTK_DIALOG(about));
-  gtk_widget_destroy(GTK_WIDGET(about));
+  gtk_widget_hide(GTK_WIDGET(about));
 }
 static void prefs_cb(GtkMenuItem *menuitem, GtkDialog *prefs) {
   gint result = gtk_dialog_run(GTK_DIALOG(prefs));
@@ -16,7 +16,7 @@ static void prefs_cb(GtkMenuItem *menuitem, GtkDialog *prefs) {
     default:
       break;
   }
-  gtk_widget_destroy(GTK_WIDGET(prefs));
+  gtk_widget_hide(GTK_WIDGET(prefs));
 }
 
 static void spektro_startup_cb(GtkApplication *app, gpointer user_data) {
