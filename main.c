@@ -7,8 +7,9 @@ static void about_cb(GtkMenuItem *menuitem, GtkAboutDialog *about) {
 static void prefs_cb(GtkMenuItem *menuitem, GtkDialog *prefs) {
   gint result = gtk_dialog_run(GTK_DIALOG(prefs));
   switch (result) {
-    case GTK_RESPONSE_OK:
-      g_debug("save preferences");
+    case GTK_RESPONSE_APPLY:
+      // TODO
+      g_debug("apply preferences");
       break;
     case GTK_RESPONSE_CANCEL:
       g_debug("cancel");
