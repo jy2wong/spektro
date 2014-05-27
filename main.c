@@ -1,5 +1,11 @@
 #include <gtk/gtk.h>
 
+static void quit_cb(GtkMenuItem *menuitem, GtkApplication *app) {
+  GList *window_list = gtk_application_get_windows(app);
+  for (GList *w = window_list; w != NULL; w = w->next) {
+    gtk_application_remove_window(app, GTK_WINDOW(w->data));
+  }
+}
 static void about_cb(GtkMenuItem *menuitem, GtkAboutDialog *about) {
   gint result = gtk_dialog_run(GTK_DIALOG(about));
   gtk_widget_hide(GTK_WIDGET(about));
@@ -41,6 +47,10 @@ static void spektro_activate_cb(GtkApplication *app, gpointer user_data) {
       gtk_builder_get_object(builder, "scrolledwindow"));
 
   GtkImage *canvas = GTK_IMAGE(gtk_builder_get_object(builder, "canvas"));
+
+  // file menu
+  GtkMenuItem *menu_quit = GTK_MENU_ITEM(gtk_builder_get_object(builder, "menu-file-quit"));
+  g_signal_connect(G_OBJECT(menu_quit), "activate", G_CALLBACK(quit_cb), app);
 
   // open preferences window with menu
   GtkDialog *prefs = GTK_DIALOG(gtk_builder_get_object(builder, "preferences-dialog"));
