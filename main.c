@@ -1,5 +1,31 @@
 #include <gtk/gtk.h>
 
+int open_file(char *file_name, GtkImage *canvas) {
+  //GdkPixbuf *img = gdk_pixbuf_new(
+  gtk_image_set_from_file(canvas, "/tmp/peregrine.png");
+  return 0;
+}
+static void open_cb(GtkMenuItem *menuitem, GtkBuilder *builder) {
+  GtkFileChooserDialog *file_chooser = GTK_FILE_CHOOSER_DIALOG(gtk_builder_get_object(builder, "file-chooser-dialog"));
+  gint result = gtk_dialog_run(GTK_DIALOG(file_chooser));
+  g_message("open_cb result: %d, accept: %d\n", result, GTK_RESPONSE_ACCEPT);
+  switch (result) {
+    case GTK_RESPONSE_APPLY:
+    {
+      g_message("open file");
+      char *file_name = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser));
+      GtkImage *canvas = GTK_IMAGE(gtk_builder_get_object(builder, "canvas"));
+      open_file(file_name, canvas);
+      g_free(file_name);
+      break;
+    }
+    case GTK_RESPONSE_CANCEL:
+      // fallthrough
+    default:
+      break;
+  }
+  gtk_widget_hide(GTK_WIDGET(file_chooser));
+}
 static void quit_cb(GtkMenuItem *menuitem, GtkApplication *app) {
   GList *window_list = gtk_application_get_windows(app);
   for (GList *w = window_list; w != NULL; w = w->next) {
@@ -49,6 +75,10 @@ static void spektro_activate_cb(GtkApplication *app, gpointer user_data) {
   GtkImage *canvas = GTK_IMAGE(gtk_builder_get_object(builder, "canvas"));
 
   // file menu
+  GtkFileChooserDialog *file_chooser = GTK_FILE_CHOOSER_DIALOG(gtk_builder_get_object(builder, "file-chooser-dialog"));
+  GtkMenuItem *menu_open = GTK_MENU_ITEM(gtk_builder_get_object(builder, "menu-file-open"));
+  g_signal_connect(G_OBJECT(menu_open), "activate", G_CALLBACK(open_cb), builder);
+
   GtkMenuItem *menu_quit = GTK_MENU_ITEM(gtk_builder_get_object(builder, "menu-file-quit"));
   g_signal_connect(G_OBJECT(menu_quit), "activate", G_CALLBACK(quit_cb), app);
 
