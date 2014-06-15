@@ -6,21 +6,24 @@
 
 static int open_file(char *file_name, GtkImage *canvas) {
   int tmp_file;
-  char *tmp_audio_fname = "/tmp/spektro_XXXXXX.wav";
+  char tmp_audio_fname[] = "/tmp/spektro_XXXXXX.wav";
+  char tmp_image_fname[] = "/tmp/spektro_XXXXXX.pgm";
+
+  // create tempfile for f32le pcm
   tmp_file = mkstemps(tmp_audio_fname, 4);
   if (tmp_file == -1) {
     g_warning("open_file(): mkstemps() failed");
     return -1;
   }
-
   close(tmp_file);
 
-  char tmp_image_fname[] = "/tmp/spektro_XXXXXX.pgm";
+  // create tempfile for image
   tmp_file = mkstemps(tmp_image_fname, 4);
   if (tmp_file == -1) {
     g_warning("open_file(): mkstemps() failed");
     return -1;
   }
+
   // TODO error checking for extract_raw_audio()
   extract_raw_audio(file_name, tmp_audio_fname);
   create_rdft_image(10.0f, 10, tmp_audio_fname, tmp_file);
