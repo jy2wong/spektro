@@ -1,10 +1,34 @@
+#include <stdlib.h>
 #include <gtk/gtk.h>
 
-int open_file(char *file_name, GtkImage *canvas) {
-  //GdkPixbuf *img = gdk_pixbuf_new(
-  gtk_image_set_from_file(canvas, "/tmp/peregrine.png");
+#include "libfft/fft-pgm.h"
+#include "spektro-audio.h"
+
+static int open_file(char *file_name, GtkImage *canvas) {
+  int tmp_file;
+  char *tmp_audio_fname = "/tmp/spektro_XXXXXX.wav";
+  tmp_file = mkstemps(tmp_audio_fname, 4);
+  if (tmp_file == -1) {
+    g_warning("open_file(): mkstemps() failed");
+    return -1;
+  }
+
+  close(tmp_file);
+
+  char tmp_image_fname[] = "/tmp/spektro_XXXXXX.pgm";
+  tmp_file = mkstemps(tmp_image_fname, 4);
+  if (tmp_file == -1) {
+    g_warning("open_file(): mkstemps() failed");
+    return -1;
+  }
+  // TODO error checking for extract_raw_audio()
+  extract_raw_audio(file_name, tmp_audio_fname);
+  create_rdft_image(10.0f, 10, tmp_audio_fname, tmp_file);
+
+  gtk_image_set_from_file(canvas, tmp_image_fname);
   return 0;
 }
+
 static void open_cb(GtkMenuItem *menuitem, GtkBuilder *builder) {
   GtkFileChooserDialog *file_chooser = GTK_FILE_CHOOSER_DIALOG(gtk_builder_get_object(builder, "file-chooser-dialog"));
   gint result = gtk_dialog_run(GTK_DIALOG(file_chooser));
@@ -26,26 +50,28 @@ static void open_cb(GtkMenuItem *menuitem, GtkBuilder *builder) {
   }
   gtk_widget_hide(GTK_WIDGET(file_chooser));
 }
+
 static void quit_cb(GtkMenuItem *menuitem, GtkApplication *app) {
   GList *window_list = gtk_application_get_windows(app);
   for (GList *w = window_list; w != NULL; w = w->next) {
     gtk_application_remove_window(app, GTK_WINDOW(w->data));
   }
 }
+
 static void about_cb(GtkMenuItem *menuitem, GtkAboutDialog *about) {
   gint result = gtk_dialog_run(GTK_DIALOG(about));
   gtk_widget_hide(GTK_WIDGET(about));
 }
+
 static void prefs_cb(GtkMenuItem *menuitem, GtkDialog *prefs) {
   gint result = gtk_dialog_run(GTK_DIALOG(prefs));
   switch (result) {
     case GTK_RESPONSE_APPLY:
       // TODO
-      g_debug("apply preferences");
+      g_message("apply preferences");
       break;
     case GTK_RESPONSE_CANCEL:
-      g_debug("cancel");
-      break;
+      // fallthrough
     default:
       break;
   }
@@ -57,6 +83,7 @@ static void spektro_startup_cb(GtkApplication *app, gpointer user_data) {
   gtk_application_set_app_menu(GTK_APPLICATION(app), NULL);
   return;
 }
+
 static void spektro_activate_cb(GtkApplication *app, gpointer user_data) {
   GtkBuilder *builder = gtk_builder_new_from_file("spektro.ui");
 
@@ -92,7 +119,6 @@ static void spektro_activate_cb(GtkApplication *app, gpointer user_data) {
   GtkMenuItem *menu_about = GTK_MENU_ITEM(gtk_builder_get_object(builder, "menu-help-about"));
   g_signal_connect(G_OBJECT(menu_about), "activate", G_CALLBACK(about_cb), about);
 
-  //gtk_widget_show(GTK_WIDGET(app_window));
   return;
 }
 
