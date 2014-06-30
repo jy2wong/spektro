@@ -42,7 +42,9 @@ typedef struct FFTComplex {
 typedef struct FFTContext {
     uint32_t nbits;
     uint32_t inverse;
-    uint16_t revtab[65536];
+    uint16_t *revtab_fwd;
+    uint16_t *revtab_inv;
+    float *tsin;
 } FFTContext;
 
 #define COSTABLE(size) \
@@ -120,6 +122,15 @@ extern "C" {
 #endif
 
 /**
+ * Simple pool-based allocator
+ */
+void *mempool_alloc_small(size_t sizeofobject, unsigned int pool_id);
+void mempool_free_small(unsigned int pool_id);
+void *mempool_alloc_large(size_t sizeofobject);
+void *mempool_realloc_large (void *ptr, size_t old_size, size_t new_size);
+void mempool_free_large(void *ptr, size_t sizeofobject);
+
+/**
  * Initialize the cosine table in ff_cos_tabs[index]
  * \param index index in ff_cos_tabs array of the table to initialize
  */
@@ -132,17 +143,18 @@ void ff_init_ff_cos_tabs(int index);
  */
 float fft_cosf(float x);
 float fft_sinf(float x);
-int ff_fft_init(FFTContext *s, uint32_t nbits, uint8_t inverse);
+int ff_fft_init(FFTContext *s, uint32_t nbits);
+void ff_fft_cleanup(FFTContext *s);
 void ff_rdft_init_sine_table(float *tsin, uint32_t nbits);
 void MD5(unsigned char *dst, const unsigned char *src, unsigned int len);
 void ff_imdct_postrotate_sse(FFTComplex *z, const float *tcos, unsigned int nbits);
 void ff_imdct_postrotate_neon(FFTComplex *z, const float *tcos, unsigned int nbits);
 void ff_mdct_postrotate_sse(FFTComplex *z, const float *tcos, unsigned int nbits);
 void ff_mdct_postrotate_neon(FFTComplex *z, const float *tcos, unsigned int nbits);
-void ff_rdft_transform(FFTContext *s, float *data, float *tsin);
-void ff_rdft_transform_sse(FFTContext *s, float *data, float *tsin);
-void ff_rdft_transform_neon(FFTContext *s, float *data, float *tsin);
-void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, float *tsin);
+void ff_rdft_transform(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
+void ff_rdft_transform_sse(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
+void ff_rdft_transform_neon(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
+void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, uint8_t inverse);
 void ff_mdct_init(float *tcos, unsigned int nbits, float scale);
 void ff_imdct_half(FFTContext *s, float *output, const float *input, float *tcos);
 void ff_mdct_calc(FFTContext *s, float *out, const float *input, float *tcos);
@@ -152,6 +164,14 @@ void ff_fft_calc_sse(FFTComplex *z, uint32_t nbits);
 void ff_fft_calc_interleave_sse(FFTComplex *z, uint32_t nbits);
 void ff_fft_calc_c(FFTComplex *z, uint32_t nbits);
 void ff_fft_calc_neon(FFTComplex *z, uint32_t nbits);
+
+static inline void ff_rdft_init(FFTContext *s, uint32_t nbits)
+{
+    unsigned int n = (1 << nbits);
+    s->tsin = (float*)mempool_alloc_small(n * sizeof(float), 0);
+    ff_fft_init(s, nbits-1);
+    ff_rdft_init_sine_table(s->tsin, nbits-1);
+}
 
 /**
  * Do a complex FFT with the parameters defined in ff_fft_init(). The
@@ -206,15 +226,6 @@ void vector_fmul_add_neon(float *dst, const float *src0, const float *src1,
                           const float *src2, int len);
 void vector_fmul_copy_neon(float *dst, const float *src, int len);
 
-/**
- * Simple pool-based allocator
- */
-void *mempool_alloc_small(size_t sizeofobject, unsigned int pool_id);
-void mempool_free_small(unsigned int pool_id);
-void *mempool_alloc_large(size_t sizeofobject);
-void *mempool_realloc_large (void *ptr, size_t old_size, size_t new_size);
-void mempool_free_large(void *ptr, size_t sizeofobject);
-
 typedef struct AudioFifo {
     float *buffer;
     float *rptr, *wptr, *end;
@@ -238,6 +249,26 @@ static inline unsigned int fifo_size(AudioFifo *f)
 static inline unsigned int fifo_space(AudioFifo *f)
 {
     return f->end - f->buffer - fifo_size(f);
+}
+
+/* Hilariously silly dB <-> linear conversions using floating point hacks. Accurate to ~1% or thereabouts. */
+typedef union _f32 {
+    float f;
+    uint32_t i;
+} _f32;
+
+static inline float to_dB(float in){
+  _f32 tmp;
+  tmp.f = in;
+  tmp.i &= 0x7fffffff;
+  return ((float)(tmp.i * 3.58855719e-7f - 382.3080943f));
+}
+
+static inline float af_from_dB(float in){
+  _f32 tmp;
+  if (in < -200.0f) return 0.0f;
+  tmp.i = (1.39331762961e+06f*(in+764.6161886f));
+  return tmp.f;
 }
 
 #ifdef __cplusplus

@@ -103,33 +103,30 @@ static int open_output_file(const char *filename)
 
 
     for (i = 0; i < ifmt_ctx->nb_streams; i++) {
+        in_stream = ifmt_ctx->streams[i];
+        dec_ctx = in_stream->codec;
+
+        if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
+          continue;
+        }
+
         out_stream = avformat_new_stream(ofmt_ctx, NULL);
         if (!out_stream) {
             av_log(NULL, AV_LOG_ERROR, "Failed allocating output stream\n");
             return AVERROR_UNKNOWN;
         }
 
-        in_stream = ifmt_ctx->streams[i];
-        dec_ctx = in_stream->codec;
         enc_ctx = out_stream->codec;
 
-        if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
-                || dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
+        if (dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
             // transcode to 32 bit little-endian float PCM codec
-            encoder = avcodec_find_encoder(CODEC_ID_PCM_F32LE);
+            //encoder = avcodec_find_encoder(CODEC_ID_PCM_F32LE);
+            encoder = avcodec_find_encoder(CODEC_ID_PCM_S16LE);
 
             /* In this example, we transcode to same properties (picture size,
              * sample rate etc.). These properties can be changed for output
              * streams easily using filters */
-            if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
-                enc_ctx->height = dec_ctx->height;
-                enc_ctx->width = dec_ctx->width;
-                enc_ctx->sample_aspect_ratio = dec_ctx->sample_aspect_ratio;
-                /* take first format from list of supported formats */
-                enc_ctx->pix_fmt = encoder->pix_fmts[0];
-                /* video time_base can be set to whatever is handy and supported by encoder */
-                enc_ctx->time_base = dec_ctx->time_base;
-            } else {
+            {
                 enc_ctx->sample_rate = dec_ctx->sample_rate;
                 enc_ctx->channel_layout = dec_ctx->channel_layout;
                 enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
@@ -137,14 +134,15 @@ static int open_output_file(const char *filename)
                 /* take first format from list of supported formats */
                 enc_ctx->sample_fmt = encoder->sample_fmts[0];
                 enc_ctx->time_base = (AVRational){1, enc_ctx->sample_rate};
+
+                /* Third parameter can be used to pass settings to encoder */
+                ret = avcodec_open2(enc_ctx, encoder, NULL);
+                if (ret < 0) {
+                    av_log(NULL, AV_LOG_ERROR, "Cannot open video encoder for stream #%u\n", i);
+                    return ret;
+                }
             }
 
-            /* Third parameter can be used to pass settings to encoder */
-            ret = avcodec_open2(enc_ctx, encoder, NULL);
-            if (ret < 0) {
-                av_log(NULL, AV_LOG_ERROR, "Cannot open video encoder for stream #%u\n", i);
-                return ret;
-            }
         } else if (dec_ctx->codec_type == AVMEDIA_TYPE_UNKNOWN) {
             av_log(NULL, AV_LOG_FATAL, "Elementary stream #%d is of unknown type, cannot proceed\n", i);
             return AVERROR_INVALIDDATA;
@@ -372,7 +370,7 @@ static int encode_write_frame(AVFrame *filt_frame, unsigned int stream_index, in
     if (!got_frame)
         got_frame = &got_frame_local;
 
-    av_log(NULL, AV_LOG_INFO, "Encoding frame\n");
+    //av_log(NULL, AV_LOG_INFO, "Encoding frame\n");
     /* encode filtered frame */
     enc_pkt.data = NULL;
     enc_pkt.size = 0;
@@ -399,7 +397,7 @@ static int encode_write_frame(AVFrame *filt_frame, unsigned int stream_index, in
             ofmt_ctx->streams[stream_index]->codec->time_base,
             ofmt_ctx->streams[stream_index]->time_base);
 
-    av_log(NULL, AV_LOG_DEBUG, "Muxing frame\n");
+    //av_log(NULL, AV_LOG_DEBUG, "Muxing frame\n");
     /* mux encoded frame */
     ret = av_interleaved_write_frame(ofmt_ctx, &enc_pkt);
     return ret;
@@ -410,7 +408,7 @@ static int filter_encode_write_frame(AVFrame *frame, unsigned int stream_index)
     int ret;
     AVFrame *filt_frame;
 
-    av_log(NULL, AV_LOG_INFO, "Pushing decoded frame to filters\n");
+    //av_log(NULL, AV_LOG_INFO, "Pushing decoded frame to filters\n");
     /* push the decoded frame into the filtergraph */
     ret = av_buffersrc_add_frame_flags(filter_ctx[stream_index].buffersrc_ctx,
             frame, 0);

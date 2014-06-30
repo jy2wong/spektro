@@ -131,14 +131,14 @@ void ff_rdft_init_sine_table(float *tsin, uint32_t nbits)
  * the two real FFTs into one complex FFT. Unmangle the results.
  * ref: http://www.engineeringproductivitytools.com/stuff/T0001/PT10.HTM
  */
-void ff_rdft_transform(FFTContext *s, float *data, float *tsin)
+void ff_rdft_transform(uint32_t nbits, float *data, uint32_t inverse, float *tsin)
 {
     unsigned int i, i1;
     FFTComplex ev, od;
-    const unsigned int n = 1 << (s->nbits+1);
+    const unsigned int n = (1 << (nbits+1));
     const float k1 = 0.5f;
-    const float k2 = 0.5f - s->inverse;
-    const float *tcos = ff_cos_tabs[s->nbits+1];
+    const float k2 = 0.5f - inverse;
+    const float *tcos = ff_cos_tabs[nbits+1];
 
     /* i=0 is a special case because of packing, the DC term is real, so we
        are going to throw the N/2 term (also real) in with it. */
@@ -159,26 +159,26 @@ void ff_rdft_transform(FFTContext *s, float *data, float *tsin)
         data[i1+1 ] = -ev.im + od.im*tcos[i] + od.re*tsin[i];
     }
     data[2*i+1] = -data[2*i+1];
-    if (s->inverse) {
+    if (inverse) {
         data[0] *= k1;
         data[1] *= k1;
     }
 }
 
-void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, float *tsin)
+void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, uint8_t inverse)
 {
     unsigned int i;
     unsigned int n = (1 << s->nbits), n2 = (n >> 1);
     FFTComplex *z1 = (FFTComplex*)data_in, *z2 = (FFTComplex *)data_out;
-    float *data = (s->inverse ? data_in : data_out);
-    float *tsin_ptr = (s->inverse ? tsin+n2 : tsin);   
-    if (!s->inverse) {
-        for(i=0;i<n;i++) z2[s->revtab[i]] = z1[i];
+    float *data = (inverse ? data_in : data_out);
+    float *tsin_ptr = (inverse ? s->tsin+n2 : s->tsin);   
+    if (!inverse) {
+        for(i=0;i<n;i++) z2[s->revtab_fwd[i]] = z1[i];
         ff_fft_calc((FFTComplex*)data_out, s->nbits);
     }
-    ff_rdft_transform(s, data, tsin_ptr);
-    if (s->inverse) {
-        for(i=0;i<n;i++) z2[s->revtab[i]] = z1[i];
+    ff_rdft_transform(s->nbits, data, inverse, tsin_ptr);
+    if (inverse) {
+        for(i=0;i<n;i++) z2[s->revtab_inv[i]] = z1[i];
         ff_fft_calc((FFTComplex*)data_out, s->nbits);
     }
 }
@@ -214,7 +214,7 @@ void ff_mdct_init(float *tcos, unsigned int nbits, float scale)
 void ff_imdct_half(FFTContext *s, float *output, const float *input, float *tcos)
 {
     int k, n2, n, mdct_bits, j;
-    const uint16_t *revtab = s->revtab;
+    const uint16_t *revtab = s->revtab_inv;
     const float *in1, *in2;
     FFTComplex *z = (FFTComplex *)output;
 
@@ -257,7 +257,7 @@ void ff_mdct_calc(FFTContext *s, float *out, const float *input, float *tcos)
 {
     int i, j, n, n8, n4, n2, n3;
     float re, im;
-    const uint16_t *revtab = s->revtab;
+    const uint16_t *revtab = s->revtab_fwd;
     FFTComplex *x = (FFTComplex *)out;
     int mdct_bits;
 
@@ -290,14 +290,13 @@ void (*ff_fft_calc_noninterleaved)(FFTComplex *z, uint32_t nbits);
 void (*ff_imdct_postrotate)(FFTComplex *z, const float *tcos, unsigned int nbits);
 void (*ff_mdct_postrotate)(FFTComplex *z, const float *tcos, unsigned int nbits);
 
-int ff_fft_init(FFTContext *s, uint32_t nbits, uint8_t inverse)
+int ff_fft_init(FFTContext *s, uint32_t nbits)
 {
     int i, j, n;
     //int eax, ebx, ecx;
     //int std_flags = 0, ext_flags = 0;
 
     s->nbits = nbits;
-    s->inverse = inverse;
     n = 1 << nbits;
 
     //cpuid(1, eax, ebx, ecx, std_flags);
@@ -317,9 +316,20 @@ int ff_fft_init(FFTContext *s, uint32_t nbits, uint8_t inverse)
     for(j=4; j<=nbits; j++) {
         ff_init_ff_cos_tabs(j);
     }
+
+    s->revtab_fwd = mempool_alloc_small(65536 * sizeof(uint16_t), 0);
+    s->revtab_inv = mempool_alloc_small(65536 * sizeof(uint16_t), 0);
     for(i=0; i<n; i++) {
-        s->revtab[-split_radix_permutation(i, n, s->inverse) & (n-1)] = i;
+        s->revtab_fwd[-split_radix_permutation(i, n, 0) & (n-1)] = i;
+	}	
+    for(i=0; i<n; i++) {
+        s->revtab_inv[-split_radix_permutation(i, n, 1) & (n-1)] = i;
 	}	
     return 0;
+}
+
+void ff_fft_cleanup(FFTContext *s)
+{
+    mempool_free_small(0);
 }
 

@@ -6,7 +6,7 @@ PKGS="gtk+-3.0 libavformat libavutil libavcodec libavfilter"
 
 all: spektro
 
-spektro: main.o spektro-audio.o libfft/fft-pgm.o libfft/fft.o libfft/fft_sse.o
+spektro: main.o spektro-audio.o libfft/fft-pgm.o libfft/fft.o libfft/fft_sse.o libfft/mempool.o libfft/kb_window.o
 	${CC} ${CFLAGS} `pkg-config --cflags ${PKGS}` -o "$@" $^ -lm `pkg-config --libs ${PKGS}`
 
 libfft/fft_sse.o: libfft/fft_sse.asm
