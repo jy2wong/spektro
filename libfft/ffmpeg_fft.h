@@ -151,7 +151,6 @@ void ff_imdct_postrotate_sse(FFTComplex *z, const float *tcos, unsigned int nbit
 void ff_imdct_postrotate_neon(FFTComplex *z, const float *tcos, unsigned int nbits);
 void ff_mdct_postrotate_sse(FFTComplex *z, const float *tcos, unsigned int nbits);
 void ff_mdct_postrotate_neon(FFTComplex *z, const float *tcos, unsigned int nbits);
-void ff_rdft_transform(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
 void ff_rdft_transform_sse(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
 void ff_rdft_transform_neon(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
 void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, uint8_t inverse);
@@ -181,6 +180,7 @@ extern void (*ff_fft_calc)(FFTComplex *z, uint32_t nbits);
 extern void (*ff_fft_calc_noninterleaved)(FFTComplex *z, uint32_t nbits);
 extern void (*ff_imdct_postrotate)(FFTComplex *z, const float *tcos, unsigned int nbits);
 extern void (*ff_mdct_postrotate)(FFTComplex *z, const float *tcos, unsigned int nbits);
+extern void (*ff_rdft_transform)(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
 
 /**
  * Special-cased transforms used in MP3 only.
@@ -208,7 +208,7 @@ void butterflies_float_neon(float *src0, float *src1, unsigned int len);
 
 void sbr_sum64x5_sse(float *z);
 void sbr_qmf_pre_shuffle_sse(float *z);
-void sbr_qmf_post_shuffle_sse(float W[32][2], float *z);
+void sbr_qmf_post_shuffle_sse(FFTComplex W[32], float *z);
 void sbr_qmf_deint_bfly_sse(float *v, const float *src0, const float *src1);
 void sbr_hf_g_filt_sse(float (*Y)[2], float (*X_high)[40][2],
                        const float *g_filt, size_t m_max, size_t ixh);
@@ -218,7 +218,7 @@ void vector_fmul_copy_sse(float *dst, const float *src, int len);
 
 void sbr_sum64x5_neon(float *z);
 void sbr_qmf_pre_shuffle_neon(float *z);
-void sbr_qmf_post_shuffle_neon(float W[32][2], const float *z);
+void sbr_qmf_post_shuffle_neon(FFTComplex W[32], const float *z);
 void sbr_qmf_deint_bfly_neon(float *v, const float *src0, const float *src1);
 void sbr_hf_g_filt_neon(float (*Y)[2], float (*X_high)[40][2],
                         const float *g_filt, size_t m_max, size_t ixh);
@@ -264,10 +264,12 @@ static inline float to_dB(float in){
   return ((float)(tmp.i * 3.58855719e-7f - 382.3080943f));
 }
 
-static inline float af_from_dB(float in){
+static inline float from_dB(float in){
   _f32 tmp;
   if (in < -200.0f) return 0.0f;
-  tmp.i = (1.39331762961e+06f*(in+764.6161886f));
+  //tmp.i = (2.78663525922e+06f*(in+382.3080943f));
+  tmp.i = (2.78663525922e+05f*(in+3823.080943f));
+  //tmp.i = (3.66163873e+05f*(in+2909.498435f));
   return tmp.f;
 }
 

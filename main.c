@@ -9,6 +9,23 @@
 static char *audio_fname;
 static char *image_fname;
 
+static void set_parameters_from_prefs(GtkBuilder *builder,
+                                      float *alpha,
+                                      uint32_t *fft_nbits,
+                                      uint32_t *use_logscale) {
+  GtkSpinButton *alpha_spin = GTK_SPIN_BUTTON(gtk_builder_get_object(builder, "prefs-windowfn-alpha"));
+  *alpha = gtk_spin_button_get_value(alpha_spin);
+
+  GtkComboBox *fftsize_combo = GTK_COMBO_BOX(gtk_builder_get_object(builder, "prefs-fftsize-size"));
+  // lowest offered power of 2 is 256 = 2^8
+  *fft_nbits = gtk_combo_box_get_active(fftsize_combo) + 8;
+
+  GtkComboBox *vscale_combo = GTK_COMBO_BOX(gtk_builder_get_object(builder, "prefs-scaling-combobox"));
+  *use_logscale = gtk_combo_box_get_active(vscale_combo);
+
+  g_message("alpha: %f, size: %d, logscale: %d", *alpha, *fft_nbits, *use_logscale);
+}
+
 static int generate_tmp_image_fd() {
   int tmp_fd;
   char tmp_image_fname[] = "/tmp/spektro_XXXXXX.pgm";
@@ -30,7 +47,7 @@ static void set_image(GtkImage *canvas, char *file_name) {
   gtk_image_set_from_pixbuf(canvas, rotated_pb);
 }
 
-static int open_file(char *file_name, float alpha, unsigned int fft_nbits, GtkImage *canvas) {
+static int open_file(char *file_name, float alpha, unsigned int fft_nbits, unsigned int use_logscale, GtkImage *canvas) {
   int ret, tmp_file;
   char tmp_audio_fname[] = "/tmp/spektro_XXXXXX.wav";
 
@@ -52,7 +69,7 @@ static int open_file(char *file_name, float alpha, unsigned int fft_nbits, GtkIm
 
   // error checking for extract_raw_audio()
   if ((ret = extract_raw_audio(file_name, tmp_audio_fname)) == 0) {
-    create_rdft_image(alpha, fft_nbits, tmp_audio_fname, tmp_file);
+    create_rdft_image(alpha, fft_nbits, use_logscale, tmp_audio_fname, tmp_file);
     set_image(canvas, image_fname);
   }
   return ret;
@@ -66,13 +83,15 @@ static void open_cb(GtkMenuItem *menuitem, GtkBuilder *builder) {
     case GTK_RESPONSE_APPLY:
     {
       g_message("open file");
-      float alpha = 10.0f;
-      unsigned int fft_nbits = 10;
+      float alpha;
+      unsigned int fft_nbits;
+      unsigned int use_logscale;
+
+      set_parameters_from_prefs(builder, &alpha, &fft_nbits, &use_logscale);
+
       char *file_name = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser));
       GtkImage *canvas = GTK_IMAGE(gtk_builder_get_object(builder, "canvas"));
-      // TODO determine state of preferences to get good values for alpha
-      // and fft_nbits
-      open_file(file_name, alpha, fft_nbits, canvas);
+      open_file(file_name, alpha, fft_nbits, use_logscale, canvas);
       g_free(file_name);
       break;
     }
@@ -103,16 +122,13 @@ static void prefs_cb(GtkMenuItem *menuitem, GtkBuilder *builder) {
     case GTK_RESPONSE_APPLY:
       // TODO
       g_message("apply preferences");
-      GtkSpinButton *alpha_spin = GTK_SPIN_BUTTON(gtk_builder_get_object(builder, "pref-windowfn-alpha"));
-      gdouble alpha = gtk_spin_button_get_value(alpha_spin);
+      float alpha;
+      uint32_t fft_nbits;
+      uint32_t use_logscale;
 
-      GtkComboBox *fftsize_combo = GTK_COMBO_BOX(gtk_builder_get_object(builder, "pref-fftsize-size"));
-      // lowest offered power of 2 is 256 = 2^8
-      gint fft_nbits = gtk_combo_box_get_active(fftsize_combo) + 8;
+      set_parameters_from_prefs(builder, &alpha, &fft_nbits, &use_logscale);
 
-      g_message("alpha: %f, size: %d", alpha, fft_nbits);
-
-      create_rdft_image(alpha, fft_nbits, audio_fname, generate_tmp_image_fd());
+      create_rdft_image(alpha, fft_nbits, use_logscale, audio_fname, generate_tmp_image_fd());
       GtkImage *canvas = GTK_IMAGE(gtk_builder_get_object(builder, "canvas"));
       set_image(canvas, image_fname);
       //GtkNotebook *nb = GTK_NOTEBOOK(gtk_dialog_get_content_area(prefs_dialog));

@@ -121,7 +121,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkFrame" id="pref-windowfn-frame">
+                  <object class="GtkFrame" id="prefs-windowfn-frame">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="hexpand">True</property>
@@ -161,7 +161,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkSpinButton" id="pref-windowfn-alpha">
+                              <object class="GtkSpinButton" id="prefs-windowfn-alpha">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="margin_left">2</property>
@@ -180,7 +180,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBoxText" id="pref-windowfn-function">
+                              <object class="GtkComboBoxText" id="prefs-windowfn-function">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <property name="valign">center</property>
@@ -213,16 +213,16 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkFrame" id="pref-fftsize-frame">
+                  <object class="GtkFrame" id="prefs-fftsize-frame">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label_xalign">0</property>
                     <property name="shadow_type">none</property>
                     <child>
-                      <object class="GtkComboBoxText" id="pref-fftsize-size">
+                      <object class="GtkComboBoxText" id="prefs-fftsize-size">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="active">5</property>
+                        <property name="active">4</property>
                         <items>
                           <item id="fftsize-128">128</item>
                           <item id="fftsize-256">256</item>
@@ -279,14 +279,14 @@
                         <property name="can_focus">False</property>
                         <property name="left_padding">12</property>
                         <child>
-                          <object class="GtkComboBoxText" id="scaling-combobox">
+                          <object class="GtkComboBoxText" id="prefs-scaling-combobox">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="valign">center</property>
-                            <property name="active">1</property>
+                            <property name="active">0</property>
                             <items>
-                              <item id="scaling-label-logarithmic" translatable="yes">Logarithmic</item>
                               <item id="scaling-label-linear" translatable="yes">Linear</item>
+                              <item id="scaling-label-logarithmic" translatable="yes">Logarithmic</item>
                             </items>
                           </object>
                         </child>

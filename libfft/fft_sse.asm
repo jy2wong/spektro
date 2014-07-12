@@ -61,13 +61,15 @@ ps_imdct36_cos:  dd 1.0, 0.50190991877167369479, 1.0, 5.73685662283492756461
           dd 1.0, 0.61038729438072803416, 1.0, 0.87172339781054900991
           dd 1.0, 0.70710678118654752439, 0.0, 0.0
 
-ps_half: dd 0.5
+align 16
+ps_half: times 4 dd 0.5
 
 %assign i 16
 %rep 13
 cextern ff_cos_ %+ i
 %assign i i<<1
 %endrep
+cextern ff_cos_tabs
 
 %ifdef ARCH_X86_64
     %define pointer dq
@@ -646,7 +648,7 @@ cendfunc ff_fft_calc
     mulps        %3, xmm3
 %endmacro
 
-cglobal ff_imdct_postrotate, 3,7,5, z, tcos, nbits ; FFTComplex *z, float *tcos, unsigned int nbits
+cglobal ff_imdct_postrotate, 3,6,5, z, tcos, nbits ; FFTComplex *z, float *tcos, unsigned int nbits
     mov    r5, nbitsq
     lea    zq, [zq    + 2*r5]
     lea tcosq, [tcosq + 2*r5]
@@ -682,7 +684,7 @@ cglobal ff_imdct_postrotate, 3,7,5, z, tcos, nbits ; FFTComplex *z, float *tcos,
     RET
 cendfunc ff_imdct_postrotate
 
-cglobal ff_mdct_postrotate, 3,7,5, z, tcos, nbits ; FFTComplex *z, float *tcos, unsigned int nbits
+cglobal ff_mdct_postrotate, 3,6,5, z, tcos, nbits ; FFTComplex *z, float *tcos, unsigned int nbits
     mov    r5, nbitsq
     lea    zq, [zq    + 2*r5]
     lea tcosq, [tcosq + 2*r5]
@@ -918,4 +920,91 @@ cglobal imdct36, 4,4,8, out, in
     movss  [outq+0x20], m5
     RET
 cendfunc imdct36
+
+%ifdef ARCH_X86_64
+cglobal ff_rdft_transform,4,6,7, nbits, data, inverse, tsin
+%else
+cglobal ff_rdft_transform,0,6,7, nbits, data, inverse, tsin
+%endif
+%define idx rax
+%define invidx r5
+%ifdef ARCH_X86_64
+%define tcos r0
+%else
+%define tcos r2
+%endif
+%ifdef ARCH_X86_64
+    push rbx
+    mov rbx, rcx
+%xdefine tsinq rbx
+%endif
+    mov rcx, nbitsm
+	mov r4, 1
+	shl r4, cl
+	xorps   xmm7, xmm7 
+%ifndef ARCH_X86_64
+    mov r2d, r2m
+%endif
+    test    r2, r2 
+	je	.L2
+    movaps xmm7, [ps_80000000]
+.L2:
+	mov   tcos, [ff_cos_tabs + gprsize*rcx + gprsize]
+%ifndef ARCH_X86_64
+    mov   tsinq, tsinm
+    mov   datad, datam
+%endif
+	lea invidx, [r4+r4-2]
+    xor idx, idx 
+.mainloop:
+	movaps xmm6, [ps_p1m1p1m1] 
+	movups xmm0, [dataq + 4*idx] 
+	movups xmm1, [dataq + 4*invidx] 
+	shufps xmm1, xmm1, 0x4e 
+	xorps  xmm1, xmm6 
+	movaps xmm2, xmm0 
+	addps  xmm0, xmm1 
+	subps  xmm2, xmm1 
+	xorps  xmm2, xmm7 
+    mulps  xmm0, [ps_half]
+    mulps  xmm2, [ps_half]
+	movaps xmm3, xmm2 
+    shufps xmm2, xmm2, 0xb1
+	xorps  xmm2, xmm6 
+	movlps xmm4, [tcos  + 2*idx] 
+	movlps xmm5, [tsinq + 2*idx] 
+	shufps xmm4, xmm4, 0x50 
+	shufps xmm5, xmm5, 0x50 
+	mulps  xmm2, xmm4 
+	mulps  xmm3, xmm5 
+	addps  xmm2, xmm3 
+	movaps xmm1, xmm0 
+	addps  xmm0, xmm2 
+	subps  xmm1, xmm2 
+	xorps  xmm1, xmm6 
+	shufps xmm1, xmm1, 0x4e 
+	movups [dataq + 4*idx], xmm0 
+	movups [dataq + 4*invidx], xmm1 
+    sub    invidx, 4
+    add    idx, 4
+    cmp    idx, r4       
+    jb	.mainloop
+%ifndef ARCH_X86_64
+    mov r2d, r2m
+%endif
+    test   r2, r2
+	jne	.L6
+	movlps xmm0, [dataq] 
+    addps  xmm0, xmm0
+    xorps  xmm0, xmm6
+    movlps [dataq], xmm0
+.L6:
+	movlps xmm0, [dataq+4*idx] 
+    xorps  xmm0, xmm6
+    movlps [dataq+4*idx], xmm0
+%ifdef ARCH_X86_64
+    pop rbx
+%endif
+    RET
+cendfunc ff_rdft_transform
 

@@ -258,7 +258,10 @@ mempool_free_small(unsigned int pool_id)
   }
 }
 
-#if 0
+#if defined(__linux)
+void *mremap(void *old_address, size_t old_size, size_t new_size, int flags);
+#endif
+
 void *
 mempool_alloc_large (size_t size)
 /* Allocate a "large" object */
@@ -316,5 +319,4 @@ mempool_free_large(void *ptr, size_t size)
     munmap(ptr, size);
 #endif
 }
-#endif
 

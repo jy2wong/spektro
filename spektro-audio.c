@@ -129,8 +129,8 @@ static int open_output_file(const char *filename)
             {
                 enc_ctx->sample_rate = dec_ctx->sample_rate;
                 enc_ctx->channel_layout = dec_ctx->channel_layout;
-                enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
-                //enc_ctx->channels = 1;
+                //enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
+                enc_ctx->channels = dec_ctx->channels;
                 /* take first format from list of supported formats */
                 enc_ctx->sample_fmt = encoder->sample_fmts[0];
                 enc_ctx->time_base = (AVRational){1, enc_ctx->sample_rate};
@@ -228,6 +228,7 @@ static int init_filter(FilteringContext* fctx, AVCodecContext *dec_ctx,
             goto end;
         }
 
+        /*
         ret = av_opt_set_bin(buffersink_ctx, "pix_fmts",
                 (uint8_t*)&enc_ctx->pix_fmt, sizeof(enc_ctx->pix_fmt),
                 AV_OPT_SEARCH_CHILDREN);
@@ -235,6 +236,7 @@ static int init_filter(FilteringContext* fctx, AVCodecContext *dec_ctx,
             av_log(NULL, AV_LOG_ERROR, "Cannot set output pixel format\n");
             goto end;
         }
+                */
     } else if (dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
         buffersrc = avfilter_get_by_name("abuffer");
         buffersink = avfilter_get_by_name("abuffersink");
@@ -252,6 +254,7 @@ static int init_filter(FilteringContext* fctx, AVCodecContext *dec_ctx,
                 dec_ctx->time_base.num, dec_ctx->time_base.den, dec_ctx->sample_rate,
                 av_get_sample_fmt_name(dec_ctx->sample_fmt),
                 dec_ctx->channel_layout);
+        printf("====\n%s\n====\n", args);
         ret = avfilter_graph_create_filter(&buffersrc_ctx, buffersrc, "in",
                 args, NULL, filter_graph);
         if (ret < 0) {
@@ -558,20 +561,26 @@ int extract_raw_audio(char *src_filename, char *dest_filename)
 
     /* flush filters and encoders */
     for (i = 0; i < ifmt_ctx->nb_streams; i++) {
-        /* flush filter */
-        if (!filter_ctx[i].filter_graph)
-            continue;
-        ret = filter_encode_write_frame(NULL, i);
-        if (ret < 0) {
-            av_log(NULL, AV_LOG_ERROR, "Flushing filter failed\n");
-            goto end;
-        }
+        AVStream *stream;
+        AVCodecContext *codec_ctx;
+        stream = ifmt_ctx->streams[i];
+        codec_ctx = stream->codec;
+        if (codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
+            /* flush filter */
+            if (!filter_ctx[i].filter_graph)
+                continue;
+            ret = filter_encode_write_frame(NULL, i);
+            if (ret < 0) {
+                av_log(NULL, AV_LOG_ERROR, "Flushing filter failed\n");
+                goto end;
+            }
 
-        /* flush encoder */
-        ret = flush_encoder(i);
-        if (ret < 0) {
-            av_log(NULL, AV_LOG_ERROR, "Flushing encoder failed\n");
-            goto end;
+            /* flush encoder */
+            ret = flush_encoder(i);
+            if (ret < 0) {
+                av_log(NULL, AV_LOG_ERROR, "Flushing encoder failed\n");
+                goto end;
+            }
         }
     }
 

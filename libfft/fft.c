@@ -26,6 +26,7 @@
  * FFT/IFFT transforms.
  */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "ffmpeg_fft.h"
@@ -127,44 +128,6 @@ void ff_rdft_init_sine_table(float *tsin, uint32_t nbits)
     }
 }
 
-/** Map one real FFT into two parallel real even and odd FFTs. Then interleave
- * the two real FFTs into one complex FFT. Unmangle the results.
- * ref: http://www.engineeringproductivitytools.com/stuff/T0001/PT10.HTM
- */
-void ff_rdft_transform(uint32_t nbits, float *data, uint32_t inverse, float *tsin)
-{
-    unsigned int i, i1;
-    FFTComplex ev, od;
-    const unsigned int n = (1 << (nbits+1));
-    const float k1 = 0.5f;
-    const float k2 = 0.5f - inverse;
-    const float *tcos = ff_cos_tabs[nbits+1];
-
-    /* i=0 is a special case because of packing, the DC term is real, so we
-       are going to throw the N/2 term (also real) in with it. */
-    ev.re = data[0];
-    data[0] = ev.re+data[1];
-    data[1] = ev.re-data[1];
-    for (i = 1; i < (n>>2); i++) {
-        i1 = n-2*i;
-        /* Separate even and odd FFTs */
-        ev.re =  k1*(data[2*i  ]+data[i1  ]);
-        od.im = -k2*(data[2*i  ]-data[i1  ]);
-        ev.im =  k1*(data[2*i+1]-data[i1+1]);
-        od.re =  k2*(data[2*i+1]+data[i1+1]);
-        /* Apply twiddle factors to the odd FFT and add to the even FFT */
-        data[2*i  ] =  ev.re + od.re*tcos[i] - od.im*tsin[i];
-        data[2*i+1] =  ev.im + od.im*tcos[i] + od.re*tsin[i];
-        data[i1   ] =  ev.re - od.re*tcos[i] + od.im*tsin[i];
-        data[i1+1 ] = -ev.im + od.im*tcos[i] + od.re*tsin[i];
-    }
-    data[2*i+1] = -data[2*i+1];
-    if (inverse) {
-        data[0] *= k1;
-        data[1] *= k1;
-    }
-}
-
 void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, uint8_t inverse)
 {
     unsigned int i;
@@ -178,6 +141,9 @@ void ff_rdft_calc(FFTContext *s, float *data_out, float *data_in, uint8_t invers
     }
     ff_rdft_transform(s->nbits, data, inverse, tsin_ptr);
     if (inverse) {
+        float tmp = data[0];
+        data[0] = data[1];
+        data[1] = tmp;
         for(i=0;i<n;i++) z2[s->revtab_inv[i]] = z1[i];
         ff_fft_calc((FFTComplex*)data_out, s->nbits);
     }
@@ -215,7 +181,6 @@ void ff_imdct_half(FFTContext *s, float *output, const float *input, float *tcos
 {
     int k, n2, n, mdct_bits, j;
     const uint16_t *revtab = s->revtab_inv;
-    const float *in1, *in2;
     FFTComplex *z = (FFTComplex *)output;
 
     mdct_bits = s->nbits + 1;
@@ -223,14 +188,10 @@ void ff_imdct_half(FFTContext *s, float *output, const float *input, float *tcos
     n2 = n >> 1;
 
     /* pre rotation */
-    in1 = input;
-    in2 = input + n - 1;
     for(k = 0; k < n2; k++) {
         j=revtab[k];
-        z[j].re = *in2 * tcos[2*k  ] - *in1 * tcos[2*k+1];
-        z[j].im = *in2 * tcos[2*k+1] + *in1 * tcos[2*k];
-        in1 += 2;
-        in2 -= 2;
+        z[j].re = input[n - 2*k - 1] * tcos[2*k  ] - input[2*k] * tcos[2*k+1];
+        z[j].im = input[n - 2*k - 1] * tcos[2*k+1] + input[2*k] * tcos[2*k];
     }
     ff_fft_calc_noninterleaved(z, s->nbits);
     ff_imdct_postrotate(z, tcos, n);
@@ -289,6 +250,7 @@ void (*ff_fft_calc)(FFTComplex *z, uint32_t nbits);
 void (*ff_fft_calc_noninterleaved)(FFTComplex *z, uint32_t nbits);
 void (*ff_imdct_postrotate)(FFTComplex *z, const float *tcos, unsigned int nbits);
 void (*ff_mdct_postrotate)(FFTComplex *z, const float *tcos, unsigned int nbits);
+void (*ff_rdft_transform)(uint32_t nbits, float *data, uint32_t inverse, float *tsin);
 
 int ff_fft_init(FFTContext *s, uint32_t nbits)
 {
@@ -307,18 +269,19 @@ int ff_fft_init(FFTContext *s, uint32_t nbits)
     	ff_fft_calc_noninterleaved = ff_fft_calc_sse;
         ff_imdct_postrotate = ff_imdct_postrotate_sse;
         ff_mdct_postrotate = ff_mdct_postrotate_sse;
+        ff_rdft_transform = ff_rdft_transform_sse;
     /* } else if (ext_flags & (1<<31)) {
     	ff_fft_calc = ff_fft_calc_3dn2;
 	} else {
     	ff_fft_calc = ff_fft_calc_c;
 	} */
 
-    for(j=4; j<=nbits; j++) {
+    for(j=4; j<=nbits+1; j++) {
         ff_init_ff_cos_tabs(j);
     }
 
-    s->revtab_fwd = mempool_alloc_small(65536 * sizeof(uint16_t), 0);
-    s->revtab_inv = mempool_alloc_small(65536 * sizeof(uint16_t), 0);
+    s->revtab_fwd = mempool_alloc_small(n * sizeof(uint16_t), 0);
+    s->revtab_inv = mempool_alloc_small(n * sizeof(uint16_t), 0);
     for(i=0; i<n; i++) {
         s->revtab_fwd[-split_radix_permutation(i, n, 0) & (n-1)] = i;
 	}	

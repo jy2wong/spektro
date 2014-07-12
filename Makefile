@@ -6,10 +6,13 @@ PKGS="gtk+-3.0 libavformat libavutil libavcodec libavfilter"
 
 all: spektro
 
-spektro: main.o spektro-audio.o libfft/fft-pgm.o libfft/fft.o libfft/fft_sse.o libfft/mempool.o libfft/kb_window.o
+spektro: main.o spektro-audio.o libfft/fft-pgm.o libfft/fft.o libfft/fft_sse.o libfft/mempool.o libfft/kb_window.o libfft/float_dsp_sse.o
 	${CC} ${CFLAGS} `pkg-config --cflags ${PKGS}` -o "$@" $^ -lm `pkg-config --libs ${PKGS}`
 
 libfft/fft_sse.o: libfft/fft_sse.asm
+	yasm -DARCH_X86_64=1 -f elf64 -o "$@" "$^"
+
+libfft/float_dsp_sse.o: libfft/float_dsp_sse.asm
 	yasm -DARCH_X86_64=1 -f elf64 -o "$@" "$^"
 
 libfft/%.o: libfft/%.c

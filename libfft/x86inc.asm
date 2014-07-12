@@ -259,10 +259,10 @@ DECLARE_REG_TMP_SIZE 0,1,2,3,4,5,6,7,8,9
 
 %ifdef WIN64 ; Windows x64 ;=================================================
 
-DECLARE_REG 0, rcx, ecx, cx,  cl,  ecx
-DECLARE_REG 1, rdx, edx, dx,  dl,  edx
-DECLARE_REG 2, r8,  r8d, r8w, r8b, r8d
-DECLARE_REG 3, r9,  r9d, r9w, r9b, r9d
+DECLARE_REG 0, rcx, ecx, cx,  cl,  rcx
+DECLARE_REG 1, rdx, edx, dx,  dl,  rdx
+DECLARE_REG 2, r8,  r8d, r8w, r8b, r8
+DECLARE_REG 3, r9,  r9d, r9w, r9b, r9
 DECLARE_REG 4, rdi, edi, di,  dil, [rsp + stack_offset + 40]
 DECLARE_REG 5, rsi, esi, si,  sil, [rsp + stack_offset + 48]
 DECLARE_REG 6, rax, eax, ax,  al,  [rsp + stack_offset + 56]
@@ -334,12 +334,12 @@ DECLARE_REG 6, rax, eax, ax,  al,  [rsp + stack_offset + 56]
 
 %elifdef ARCH_X86_64 ; *nix x64 ;=============================================
 
-DECLARE_REG 0, rdi, edi, di,  dil, edi
-DECLARE_REG 1, rsi, esi, si,  sil, esi
-DECLARE_REG 2, rdx, edx, dx,  dl,  edx
-DECLARE_REG 3, rcx, ecx, cx,  cl,  ecx
-DECLARE_REG 4, r8,  r8d, r8w, r8b, r8d
-DECLARE_REG 5, r9,  r9d, r9w, r9b, r9d
+DECLARE_REG 0, rdi, edi, di,  dil, rdi
+DECLARE_REG 1, rsi, esi, si,  sil, rsi
+DECLARE_REG 2, rdx, edx, dx,  dl,  rdx
+DECLARE_REG 3, rcx, ecx, cx,  cl,  rcx
+DECLARE_REG 4, r8,  r8d, r8w, r8b, r8
+DECLARE_REG 5, r9,  r9d, r9w, r9b, r9
 DECLARE_REG 6, rax, eax, ax,  al,  [rsp + stack_offset + 8]
 %define r7m [rsp + stack_offset + 16]
 %define r8m [rsp + stack_offset + 24]
@@ -364,15 +364,16 @@ DECLARE_REG 6, rax, eax, ax,  al,  [rsp + stack_offset + 8]
 
 %else ; X86_32 ;==============================================================
 
-DECLARE_REG 0, eax, eax, ax, al,   [esp + stack_offset + 4]
-DECLARE_REG 1, ecx, ecx, cx, cl,   [esp + stack_offset + 8]
-DECLARE_REG 2, edx, edx, dx, dl,   [esp + stack_offset + 12]
-DECLARE_REG 3, ebx, ebx, bx, bl,   [esp + stack_offset + 16]
-DECLARE_REG 4, esi, esi, si, null, [esp + stack_offset + 20]
-DECLARE_REG 5, edi, edi, di, null, [esp + stack_offset + 24]
-DECLARE_REG 6, ebp, ebp, bp, null, [esp + stack_offset + 28]
+DECLARE_REG 0, eax, eax, ax, al,   [esp + stack_offset + 4 + 4]
+DECLARE_REG 1, ecx, ecx, cx, cl,   [esp + stack_offset + 4 + 8]
+DECLARE_REG 2, edx, edx, dx, dl,   [esp + stack_offset + 4 + 12]
+DECLARE_REG 3, ebx, ebx, bx, bl,   [esp + stack_offset + 4 + 16]
+DECLARE_REG 4, esi, esi, si, null, [esp + stack_offset + 4 + 20]
+DECLARE_REG 5, edi, edi, di, null, [esp + stack_offset + 4 + 24]
+%define r6m [esp + stack_offset + 28]
 %define r7m [esp + stack_offset + 32]
 %define r8m [esp + stack_offset + 36]
+%define rbp ebp
 %define rsp esp
 
 %macro PUSH_IF_USED 1 ; reg_id
