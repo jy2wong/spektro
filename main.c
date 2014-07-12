@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <gtk/gtk.h>
@@ -5,10 +6,33 @@
 #include "libfft/fft-pgm.h"
 #include "spektro-audio.h"
 
+static char *audio_fname;
+static char *image_fname;
+
+static int generate_tmp_image_fd() {
+  int tmp_fd;
+  char tmp_image_fname[] = "/tmp/spektro_XXXXXX.pgm";
+
+  tmp_fd = mkostemps(tmp_image_fname, 4, O_CREAT|O_WRONLY);
+  if (image_fname != NULL) {
+    free(image_fname);
+  }
+  image_fname = strdup(tmp_image_fname);
+  return tmp_fd;
+}
+
+static void set_image(GtkImage *canvas, char *file_name) {
+  // TODO error handling
+  GdkPixbuf *raw_pb = gdk_pixbuf_new_from_file(file_name, NULL);
+  GdkPixbuf *rotated_pb = gdk_pixbuf_rotate_simple(raw_pb, 90);
+  g_object_unref(G_OBJECT(raw_pb));
+
+  gtk_image_set_from_pixbuf(canvas, rotated_pb);
+}
+
 static int open_file(char *file_name, float alpha, unsigned int fft_nbits, GtkImage *canvas) {
   int ret, tmp_file;
   char tmp_audio_fname[] = "/tmp/spektro_XXXXXX.wav";
-  char tmp_image_fname[] = "/tmp/spektro_XXXXXX.pgm";
 
   // create tempfile for f32le pcm
   tmp_file = mkstemps(tmp_audio_fname, 4);
@@ -16,10 +40,11 @@ static int open_file(char *file_name, float alpha, unsigned int fft_nbits, GtkIm
     g_warning("open_file(): mkstemps() failed");
     return -1;
   }
+  audio_fname = strdup(tmp_audio_fname);
   close(tmp_file);
 
   // create tempfile for image
-  tmp_file = mkostemps(tmp_image_fname, 4, O_CREAT|O_WRONLY);
+  tmp_file = generate_tmp_image_fd();
   if (tmp_file == -1) {
     g_warning("open_file(): mkstemps() failed");
     return -1;
@@ -27,15 +52,8 @@ static int open_file(char *file_name, float alpha, unsigned int fft_nbits, GtkIm
 
   // error checking for extract_raw_audio()
   if ((ret = extract_raw_audio(file_name, tmp_audio_fname)) == 0) {
-    fft_nbits = 12;
     create_rdft_image(alpha, fft_nbits, tmp_audio_fname, tmp_file);
-
-    // TODO error handling
-    GdkPixbuf *raw_pb = gdk_pixbuf_new_from_file(tmp_image_fname, NULL);
-    GdkPixbuf *rotated_pb = gdk_pixbuf_rotate_simple(raw_pb, 90);
-    g_object_unref(G_OBJECT(raw_pb));
-
-    gtk_image_set_from_pixbuf(canvas, rotated_pb);
+    set_image(canvas, image_fname);
   }
   return ret;
 }
@@ -78,13 +96,26 @@ static void about_cb(GtkMenuItem *menuitem, GtkAboutDialog *about) {
   gtk_widget_hide(GTK_WIDGET(about));
 }
 
-static void prefs_cb(GtkMenuItem *menuitem, GtkDialog *prefs_dialog) {
+static void prefs_cb(GtkMenuItem *menuitem, GtkBuilder *builder) {
+  GtkDialog *prefs_dialog = GTK_DIALOG(gtk_builder_get_object(builder, "preferences-dialog"));
   gint result = gtk_dialog_run(GTK_DIALOG(prefs_dialog));
   switch (result) {
     case GTK_RESPONSE_APPLY:
       // TODO
       g_message("apply preferences");
-      GtkNotebook *nb = GTK_NOTEBOOK(gtk_dialog_get_content_area(prefs_dialog));
+      GtkSpinButton *alpha_spin = GTK_SPIN_BUTTON(gtk_builder_get_object(builder, "pref-windowfn-alpha"));
+      gdouble alpha = gtk_spin_button_get_value(alpha_spin);
+
+      GtkComboBox *fftsize_combo = GTK_COMBO_BOX(gtk_builder_get_object(builder, "pref-fftsize-size"));
+      // lowest offered power of 2 is 256 = 2^8
+      gint fft_nbits = gtk_combo_box_get_active(fftsize_combo) + 8;
+
+      g_message("alpha: %f, size: %d", alpha, fft_nbits);
+
+      create_rdft_image(alpha, fft_nbits, audio_fname, generate_tmp_image_fd());
+      GtkImage *canvas = GTK_IMAGE(gtk_builder_get_object(builder, "canvas"));
+      set_image(canvas, image_fname);
+      //GtkNotebook *nb = GTK_NOTEBOOK(gtk_dialog_get_content_area(prefs_dialog));
       break;
     case GTK_RESPONSE_CANCEL:
       // fallthrough
@@ -128,7 +159,7 @@ static void spektro_activate_cb(GtkApplication *app, gpointer user_data) {
   // open preferences window with menu
   GtkDialog *prefs = GTK_DIALOG(gtk_builder_get_object(builder, "preferences-dialog"));
   GtkMenuItem *menu_prefs = GTK_MENU_ITEM(gtk_builder_get_object(builder, "menu-edit-prefs"));
-  g_signal_connect(G_OBJECT(menu_prefs), "activate", G_CALLBACK(prefs_cb), prefs);
+  g_signal_connect(G_OBJECT(menu_prefs), "activate", G_CALLBACK(prefs_cb), builder);
 
   // about dialog
   GtkAboutDialog *about = GTK_ABOUT_DIALOG(gtk_builder_get_object(builder, "about-dialog"));
